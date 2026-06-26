@@ -1,0 +1,31 @@
+# Build output
+dist/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Environment — NEVER commit
+.env
+.env.local
+.env.*.local
+
+# Oracle wallet files — NEVER commit
+*.zip
+*.p12
+*.pem
+*.jks
+wallet/
+cwallet.sso
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
