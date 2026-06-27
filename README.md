@@ -1,184 +1,171 @@
 # OraLink MCP
 
-**Oracle Autonomous Database MCP Server** — an OAuth-compatible, cloud-hosted [Model Context Protocol](https://modelcontextprotocol.io) connector that lets Claude (and any MCP client) query, inspect, and manage Oracle ADB databases using natural language.
+> Oracle Autonomous Database MCP Server — an OAuth 2.0-compatible, hosted connector for Claude.ai and any MCP client.
 
-[![CI](https://github.com/hvrcharon1/oralink-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/hvrcharon1/oralink-mcp/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
-![License](https://img.shields.io/badge/license-Proprietary-red)
+[![License: Datacules LLC OSL](https://img.shields.io/badge/License-Datacules_OSL-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
+[![MCP](https://img.shields.io/badge/MCP-1.x-green.svg)](https://modelcontextprotocol.io)
+[![Node](https://img.shields.io/badge/Node.js-18%2B-brightgreen.svg)](https://nodejs.org)
+[![Tools](https://img.shields.io/badge/Tools-25-orange.svg)](#mcp-tools)
 
----
+## What is this?
 
-## Why OraLink?
+OraLink MCP is a hosted, OAuth 2.0-compatible [Model Context Protocol](https://modelcontextprotocol.io) server that bridges **any MCP client** (Claude.ai, Claude Desktop, Cursor, VS Code Copilot, Cline, etc.) to **Oracle Autonomous Database on OCI** — with no SQLcl, no Oracle Instant Client, and no local tooling required.
 
-Oracle does not publish an official MCP connector for Claude.ai. OraLink fills that gap: it wraps Oracle's `oracledb` Node.js driver behind a StreamableHTTP MCP server with full OAuth 2.0 authorization code flow, so you can connect Claude directly to your Autonomous Database — ATP, ADW, or JSON — without exposing credentials.
+Unlike Oracle's existing SQLcl MCP server (STDIO/local-only), OraLink MCP:
 
----
+- Runs as an **HTTPS endpoint** reachable from the cloud
+- Implements **OAuth 2.0 authorization code flow** — eligible for the Claude.ai connector marketplace
+- Works from **any device including mobile**
+- Connects to **any Oracle ADB instance** across regions
+- Uses **node-oracledb Thin Mode** — no Oracle Client libraries needed
+- Provides **25 MCP tools** across schema, query, objects, data, and admin categories
 
 ## Architecture
 
 ```
-Claude.ai / MCP Client
-        │  Bearer token (JWT)
+Claude.ai / Cursor / Any MCP Client
+        │  (MCP over HTTPS + Bearer token)
         ▼
-┌─────────────────────────────┐
-│   OraLink MCP Server        │  Express + StreamableHTTP
-│                             │
-│  ┌──────────┐  ┌─────────┐  │
-│  │  OAuth   │  │  MCP    │  │
-│  │  Layer   │  │  Tools  │  │  25 tools across 5 categories
-│  └──────────┘  └─────────┘  │
-│         │            │       │
-│         └────────────┘       │
-│              │               │
-│        ┌─────────┐           │
-│        │ Oracle  │           │
-│        │ Client  │           │  oracledb + connection pool
-│        └─────────┘           │
-└─────────────────────────────┘
-              │
-     Oracle Autonomous DB
-     (ATP / ADW / JSON)
+┌──────────────────────────┐
+│       OraLink MCP        │
+│  ┌──────────────────┐   │
+│  │   OAuth 2.0      │   │
+│  │   /oauth/*       │   │
+│  └────────┬─────────┘   │
+│  ┌─────────▼─────────┐  │
+│  │   MCP Tools (25)  │  │
+│  │ schema / query /  │  │
+│  │ objects / data /  │  │
+│  │ metadata / admin  │  │
+│  └────────┬──────────┘  │
+│  ┌─────────▼─────────┐  │
+│  │  node-oracledb    │  │
+│  │  (Thin Mode v6)   │  │
+│  └────────┬──────────┘  │
+└───────────┼──────────────┘
+            │  (TLS / mTLS)
+            ▼
+  Oracle Autonomous Database
+        (OCI Cloud)
 ```
 
----
+## MCP Tools
 
-## Tool Reference (25 tools)
-
-### 🔗 Schema Tools
+### Schema & Metadata (8 tools)
 
 | Tool | Description |
 |------|-------------|
-| `list_connections` | List all Oracle ADB connections registered to this account |
-| `list_schemas` | List all schemas (users) accessible to the connected user |
-| `list_tables` | List tables and views in a schema (filter by TABLE / VIEW / ALL) |
-| `describe_table` | Get column definitions, data types, nullable flags, and defaults |
+| `list_connections` | List registered ADB connections for this account |
+| `list_schemas` | List all accessible schemas |
+| `list_tables` | List tables/views in a schema |
+| `describe_table` | Column definitions, data types, nullable flags |
+| `execute_query` | Run a SELECT query (read-only by default, max 1000 rows) |
+| `explain_plan` | Get Oracle execution plan for a SQL statement |
+| `get_ddl` | Get DDL for any object (TABLE, VIEW, PROCEDURE...) |
+| `list_procedures` | List stored procedures, functions, packages |
 
-### 🔍 Query Tools
-
-| Tool | Description |
-|------|-------------|
-| `execute_query` | Execute a SQL SELECT — returns up to 200 rows (max 1000) |
-| `explain_plan` | Get the Oracle execution plan via `DBMS_XPLAN.DISPLAY()` |
-
-### 📋 Metadata Tools
+### Object Inspection (7 tools)
 
 | Tool | Description |
 |------|-------------|
-| `get_ddl` | Get the `CREATE` statement for any object (TABLE, VIEW, PROCEDURE, PACKAGE, …) |
-| `list_procedures` | List stored procedures, functions, and packages in a schema |
-
-### 🗂️ Object Tools
-
-| Tool | Description |
-|------|-------------|
-| `list_indexes` | List indexes on a table or across a schema with column lists |
-| `list_constraints` | List PK, FK, UNIQUE, and CHECK constraints on a table |
-| `list_sequences` | List sequences with min/max, increment, cache, and last value |
-| `list_triggers` | List triggers in a schema or on a specific table |
-| `list_synonyms` | List synonyms accessible to the connected user |
+| `list_indexes` | List indexes on a table or schema (columns, uniqueness, status) |
+| `list_constraints` | List PK, FK, UNIQUE, CHECK constraints on a table |
+| `list_sequences` | List sequences with min/max/increment/cache settings |
+| `list_triggers` | List triggers on a table or schema |
+| `list_synonyms` | List synonyms accessible to the user |
 | `get_view_definition` | Get the full SQL text behind a view |
-| `search_objects` | Search any object by name pattern (SQL `LIKE` syntax) |
+| `search_objects` | Search any object by name pattern (LIKE syntax) |
 
-### 📊 Data Tools
-
-| Tool | Description |
-|------|-------------|
-| `count_rows` | Fast `COUNT(*)` with optional `WHERE` clause |
-| `get_sample_data` | `SELECT *` with optional `WHERE`, `ORDER BY`, and row limit |
-| `execute_dml` | Run `INSERT` / `UPDATE` / `DELETE` / `MERGE` (requires `allowDml`) |
-| `execute_plsql` | Run an anonymous PL/SQL block and capture `DBMS_OUTPUT` |
-
-### 🛡️ Admin Tools
+### Data Access & DML (4 tools)
 
 | Tool | Description |
 |------|-------------|
-| `get_db_info` | Database version, name, open mode, and platform |
-| `get_table_stats` | Optimizer statistics: rows, blocks, size, last analyzed |
-| `get_tablespace_usage` | Tablespace used / total GB and percent used |
-| `list_grants` | Object-level privileges — filter by object, schema, or grantee |
-| `list_active_sessions` | Active user sessions from `V$SESSION` (top 50 by idle time) |
-| `list_invalid_objects` | All objects with `STATUS != VALID` (broken packages, views, etc.) |
+| `count_rows` | Fast COUNT(*) with optional WHERE filter |
+| `get_sample_data` | Sample rows from a table with optional filter/sort |
+| `execute_dml` | Run INSERT / UPDATE / DELETE / MERGE (requires allowDml) |
+| `execute_plsql` | Run an anonymous PL/SQL block with DBMS_OUTPUT capture |
 
----
+### Administration (6 tools)
 
-## Getting Started
+| Tool | Description |
+|------|-------------|
+| `get_db_info` | Database version, name, open mode, log mode, platform |
+| `get_table_stats` | Optimizer statistics: rows, blocks, size in MB |
+| `get_tablespace_usage` | Tablespace used/total GB and percent used |
+| `list_grants` | Object-level grants, filterable by owner/object/grantee |
+| `list_active_sessions` | Active sessions from V$SESSION with idle time |
+| `list_invalid_objects` | Objects with STATUS != VALID |
+
+## Quick Start
 
 ### Prerequisites
 
-- Node.js ≥ 18
-- Oracle Autonomous Database instance (ATP, ADW, or JSON)
-- Oracle Wallet / TLS connection string (mTLS or TLS)
+- Node.js 18+
+- An Oracle Autonomous Database instance (19c or 26ai)
+- OCI wallet `.zip` (for mTLS) or TLS connection string
 
-### 1. Clone & install
+### Install & run
 
 ```bash
 git clone https://github.com/hvrcharon1/oralink-mcp.git
 cd oralink-mcp
 npm install
-```
-
-### 2. Configure
-
-```bash
 cp .env.example .env
-# Edit .env with your Oracle connection details and JWT secret
+# Edit .env — see MANUAL_STEPS.md for secret generation
+npm run dev
 ```
 
-Key variables:
+### Connect your MCP client
 
-```env
-JWT_SECRET=your-32-char-secret
-ORACLE_WALLET_DIR=/path/to/wallet
-PORT=3000
+```json
+{
+  "mcpServers": {
+    "oralink": {
+      "type": "streamableHttp",
+      "url": "http://localhost:3000/mcp",
+      "headers": {
+        "Authorization": "Bearer <your_access_token>"
+      }
+    }
+  }
+}
 ```
 
-### 3. Run
+## OAuth 2.0 Flow (for Claude.ai marketplace)
+
+```
+1. User clicks "Connect Oracle ADB" in Claude.ai
+2. Redirected → GET /oauth/authorize
+3. User enters ADB connection details (connect string, username, password, wallet)
+4. POST /oauth/authorize → stores encrypted credentials, issues auth code
+5. POST /oauth/token → returns access_token (JWT) + refresh_token
+6. Claude.ai stores token, sends as Bearer on every MCP request
+7. OraLink validates JWT → routes to per-user Oracle connection pool
+```
+
+### Discovery document
+
+`GET /.well-known/oauth-authorization-server` returns the RFC 8414 metadata document required by Claude.ai.
+
+## Deployment
+
+See [MANUAL_STEPS.md](MANUAL_STEPS.md) for actions requiring human input.
 
 ```bash
-npm run dev          # development (tsx watch)
-npm run build && npm start   # production
+# Docker
+docker compose up -d
 ```
 
-### 4. Connect to Claude
+## Security
 
-Set your MCP server URL in Claude.ai settings:
-
-```
-https://your-server.example.com/mcp
-```
-
-Complete the OAuth flow to authorize Claude, then start querying your Oracle database with natural language.
-
----
-
-## Registering a Connection
-
-Connections are registered via the REST API (see `MANUAL_STEPS.md` for the full setup flow):
-
-```bash
-curl -X POST https://your-server/connections \
-  -H 'Authorization: Bearer <token>' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "name": "my-atp",
-    "connectString": "(description=...)",
-    "username": "ADMIN",
-    "password": "...",
-    "walletDir": "/wallets/my-atp"
-  }'
-```
-
----
-
-## Security Notes
-
-- All connections are stored encrypted per-user and never exposed through MCP tools
-- DML tools (`execute_dml`, `execute_plsql`) require the connection to be registered with `allowDml: true`
-- Access tokens are short-lived JWTs; refresh tokens are stored server-side
-- TLS is required in production (set `TRUST_PROXY=true` behind a reverse proxy)
-
----
+- Credentials encrypted at rest with AES-256-GCM
+- Per-user isolated connection pools
+- Only SELECT allowed by default; DML requires explicit opt-in per connection
+- All queries logged with user context
+- Wallet content held in memory only — never written to disk
+- SQL injection prevention via Oracle parameterized query API
 
 ## License
 
-Proprietary — see [LICENSE](LICENSE) for terms.
+[Datacules LLC Open Source License](LICENSE) © 2026 Datacules LLC

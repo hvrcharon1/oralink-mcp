@@ -7,16 +7,6 @@
  *
  * Transport: StreamableHTTP — the transport required for cloud-hosted,
  * OAuth-authenticated MCP connectors listed on Claude.ai marketplace.
- *
- * Tool inventory (25 total):
- *   Schema    : list_connections, list_schemas, list_tables, describe_table
- *   Query     : execute_query, explain_plan
- *   Metadata  : get_ddl, list_procedures
- *   Objects   : list_indexes, list_constraints, list_sequences, list_triggers,
- *               list_synonyms, get_view_definition, search_objects
- *   Data      : count_rows, get_sample_data, execute_dml, execute_plsql
- *   Admin     : get_db_info, get_table_stats, get_tablespace_usage,
- *               list_grants, list_active_sessions, list_invalid_objects
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -40,14 +30,7 @@ function buildServer(userId: string): McpServer {
     version: '0.2.0',
   });
 
-  // ── Schema tools (4) ───────────────────────────────────────────────────
-
-  server.tool(
-    'list_connections',
-    'List all Oracle ADB connections registered to this account.',
-    {},
-    () => handleMetadataTools('list_connections', {}, userId, listConnections),
-  );
+  // ── Schema tools ───────────────────────────────────────────────────────
 
   server.tool(
     'list_schemas',
@@ -79,7 +62,7 @@ function buildServer(userId: string): McpServer {
     (args) => handleSchemaTools('describe_table', args as Record<string, string>, userId),
   );
 
-  // ── Query tools (2) ───────────────────────────────────────────────────
+  // ── Query tools ───────────────────────────────────────────────────────
 
   server.tool(
     'execute_query',
@@ -103,7 +86,7 @@ function buildServer(userId: string): McpServer {
     (args) => handleQueryTools('explain_plan', args as Record<string, unknown>, userId),
   );
 
-  // ── Metadata tools (2) ─────────────────────────────────────────────────
+  // ── Metadata tools ─────────────────────────────────────────────────────
 
   server.tool(
     'get_ddl',
@@ -128,116 +111,122 @@ function buildServer(userId: string): McpServer {
     (args) => handleMetadataTools('list_procedures', args as Record<string, string>, userId, listConnections),
   );
 
-  // ── Object tools (7) ──────────────────────────────────────────────────
+  server.tool(
+    'list_connections',
+    'List all Oracle ADB connections registered to this account.',
+    {},
+    () => handleMetadataTools('list_connections', {}, userId, listConnections),
+  );
+
+  // ── Object tools ──────────────────────────────────────────────────────
 
   server.tool(
     'list_indexes',
-    'List indexes on a specific table or across a schema, including column lists.',
+    'List indexes on a table or across an entire schema, including column list, uniqueness, and status.',
     {
       connection: z.string().describe('Connection name.'),
-      schema:     z.string().optional().describe('Schema/owner filter.'),
-      table:      z.string().optional().describe('Table name filter.'),
+      schema:     z.string().optional().describe('Schema/owner to filter by.'),
+      table:      z.string().optional().describe('Table name to filter by. Omit to list indexes across the whole schema.'),
     },
-    (args) => handleObjectTools('list_indexes', args as Record<string, string>, userId),
+    (args) => handleObjectTools('list_indexes', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'list_constraints',
-    'List PRIMARY KEY, UNIQUE, FOREIGN KEY, and CHECK constraints on a table.',
+    'List all constraints on a table — PRIMARY KEY, FOREIGN KEY, UNIQUE, and CHECK constraints.',
     {
       connection: z.string().describe('Connection name.'),
-      table:      z.string().describe('Table name to inspect.'),
+      table:      z.string().describe('Table name.'),
       schema:     z.string().optional().describe('Schema/owner of the table.'),
     },
-    (args) => handleObjectTools('list_constraints', args as Record<string, string>, userId),
+    (args) => handleObjectTools('list_constraints', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'list_sequences',
-    'List all sequences in a schema with current value and cache settings.',
+    'List sequences in a schema, including current value, increment, min/max, and cache settings.',
     {
       connection: z.string().describe('Connection name.'),
-      schema:     z.string().optional().describe('Schema/owner filter.'),
+      schema:     z.string().optional().describe('Schema/owner. Omit to list all non-system sequences.'),
     },
-    (args) => handleObjectTools('list_sequences', args as Record<string, string>, userId),
+    (args) => handleObjectTools('list_sequences', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'list_triggers',
-    'List triggers in a schema or on a specific table.',
+    'List triggers on a specific table or across a schema, including trigger type, event, and status.',
     {
       connection: z.string().describe('Connection name.'),
-      schema:     z.string().optional().describe('Schema/owner filter.'),
-      table:      z.string().optional().describe('Table name to filter triggers on.'),
+      schema:     z.string().optional().describe('Schema/owner.'),
+      table:      z.string().optional().describe('Table name. Omit to list all triggers in the schema.'),
     },
-    (args) => handleObjectTools('list_triggers', args as Record<string, string>, userId),
+    (args) => handleObjectTools('list_triggers', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'list_synonyms',
-    'List synonyms accessible to the connected user in a schema.',
+    'List synonyms accessible to the user, optionally filtered by schema.',
     {
       connection: z.string().describe('Connection name.'),
-      schema:     z.string().optional().describe('Owner filter (defaults to non-system schemas).'),
+      schema:     z.string().optional().describe('Owner of the synonyms.'),
     },
-    (args) => handleObjectTools('list_synonyms', args as Record<string, string>, userId),
+    (args) => handleObjectTools('list_synonyms', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'get_view_definition',
-    'Get the full SQL query that defines a view (CREATE OR REPLACE VIEW … AS …).',
+    'Get the full SQL text (SELECT statement) behind an Oracle view.',
     {
       connection: z.string().describe('Connection name.'),
       view:       z.string().describe('View name.'),
       schema:     z.string().optional().describe('Schema/owner of the view.'),
     },
-    (args) => handleObjectTools('get_view_definition', args as Record<string, string>, userId),
+    (args) => handleObjectTools('get_view_definition', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'search_objects',
-    'Search database objects by name pattern (LIKE syntax). Optionally filter by object type and schema.',
+    'Search for any database object by name pattern (SQL LIKE syntax, e.g. "EMP%"). Returns up to 100 matches.',
     {
       connection: z.string().describe('Connection name.'),
-      pattern:    z.string().default('%').describe('Name pattern using SQL LIKE syntax (e.g. CUST%, %ORDER%).'),
-      type:       z.string().optional().describe('Object type filter (TABLE, VIEW, PROCEDURE, etc.).'),
-      schema:     z.string().optional().describe('Schema/owner filter.'),
+      pattern:    z.string().optional().describe('Name pattern using SQL LIKE syntax (e.g. "EMP%"). Defaults to "%" (all).'),
+      type:       z.string().optional().describe('Object type filter: TABLE, VIEW, PROCEDURE, FUNCTION, INDEX, SEQUENCE, etc.'),
+      schema:     z.string().optional().describe('Schema/owner to search within.'),
     },
-    (args) => handleObjectTools('search_objects', args as Record<string, string>, userId),
+    (args) => handleObjectTools('search_objects', args as Record<string, string | undefined>, userId),
   );
 
-  // ── Data tools (4) ────────────────────────────────────────────────────
+  // ── Data tools ────────────────────────────────────────────────────────
 
   server.tool(
     'count_rows',
-    'Return the row count for a table, with an optional WHERE clause filter.',
+    'Get a fast COUNT(*) for a table, optionally with a WHERE filter.',
     {
       connection:   z.string().describe('Connection name.'),
       table:        z.string().describe('Table name.'),
-      schema:       z.string().optional().describe('Schema/owner of the table.'),
-      where_clause: z.string().optional().describe('Optional WHERE filter (without the WHERE keyword).'),
+      schema:       z.string().optional().describe('Schema/owner.'),
+      where_clause: z.string().optional().describe('Optional WHERE clause (without the WHERE keyword).'),
     },
     (args) => handleDataTools('count_rows', args as Record<string, unknown>, userId),
   );
 
   server.tool(
     'get_sample_data',
-    'Fetch a sample of rows from a table with optional WHERE filter and ORDER BY clause.',
+    'SELECT * from a table with optional WHERE / ORDER BY and a row limit (default 20, max 100).',
     {
       connection:   z.string().describe('Connection name.'),
       table:        z.string().describe('Table name.'),
       schema:       z.string().optional().describe('Schema/owner.'),
-      limit:        z.number().int().min(1).max(100).default(20).optional()
-                      .describe('Number of rows to return (default 20, max 100).'),
-      where_clause: z.string().optional().describe('Optional WHERE filter (without the WHERE keyword).'),
-      order_by:     z.string().optional().describe('Optional ORDER BY expression.'),
+      limit:        z.number().int().min(1).max(100).default(20).optional().describe('Number of rows to return (default 20).'),
+      order_by:     z.string().optional().describe('ORDER BY expression (e.g. "CREATED_AT DESC").'),
+      where_clause: z.string().optional().describe('Optional WHERE clause (without the WHERE keyword).'),
     },
     (args) => handleDataTools('get_sample_data', args as Record<string, unknown>, userId),
   );
 
   server.tool(
     'execute_dml',
-    'Execute a DML statement (INSERT, UPDATE, DELETE, MERGE) against Oracle. Requires the connection to have allowDml enabled.',
+    'Execute an INSERT, UPDATE, DELETE, or MERGE statement. Requires the connection to have allowDml enabled.',
     {
       connection: z.string().describe('Connection name (must have DML enabled).'),
       sql:        z.string().describe('DML statement to execute.'),
@@ -250,71 +239,71 @@ function buildServer(userId: string): McpServer {
     'Execute an anonymous PL/SQL block and capture DBMS_OUTPUT. Requires the connection to have allowDml enabled.',
     {
       connection: z.string().describe('Connection name (must have DML enabled).'),
-      sql:        z.string().describe('PL/SQL block to execute (BEGIN … END;).'),
+      sql:        z.string().describe('Anonymous PL/SQL block (BEGIN...END;).'),
     },
     (args) => handleDataTools('execute_plsql', args as Record<string, unknown>, userId),
   );
 
-  // ── Admin tools (6) ───────────────────────────────────────────────────
+  // ── Admin tools ───────────────────────────────────────────────────────
 
   server.tool(
     'get_db_info',
-    'Get Oracle database version, name, open mode, and platform details.',
+    'Get Oracle database version, name, open mode, log mode, role, and platform from V$DATABASE / V$VERSION.',
     {
       connection: z.string().describe('Connection name.'),
     },
-    (args) => handleAdminTools('get_db_info', args as Record<string, string>, userId),
+    (args) => handleAdminTools('get_db_info', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'get_table_stats',
-    'Get optimizer statistics for a table: row count, block count, estimated size, and last analysis date.',
+    'Get optimizer statistics for a table: row count, block count, average row length, and estimated size in MB.',
     {
       connection: z.string().describe('Connection name.'),
       table:      z.string().describe('Table name.'),
-      schema:     z.string().optional().describe('Schema/owner of the table.'),
+      schema:     z.string().optional().describe('Schema/owner.'),
     },
-    (args) => handleAdminTools('get_table_stats', args as Record<string, string>, userId),
+    (args) => handleAdminTools('get_table_stats', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'get_tablespace_usage',
-    'Show tablespace utilisation: used GB, total GB, and percent used.',
+    'Show tablespace usage: used GB, total GB, and percent used. Uses DBA_TABLESPACE_USAGE_METRICS when available.',
     {
       connection: z.string().describe('Connection name.'),
     },
-    (args) => handleAdminTools('get_tablespace_usage', args as Record<string, string>, userId),
+    (args) => handleAdminTools('get_tablespace_usage', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'list_grants',
-    'List object-level privileges (grants) — filter by object, schema, or grantee.',
+    'List object-level privileges (grants) on Oracle objects, filterable by owner, object, or grantee.',
     {
-      connection:   z.string().describe('Connection name.'),
-      schema:       z.string().optional().describe('Object owner filter.'),
-      object_name:  z.string().optional().describe('Object name filter.'),
-      grantee:      z.string().optional().describe('Grantee user/role filter.'),
+      connection:  z.string().describe('Connection name.'),
+      schema:      z.string().optional().describe('Owner/schema of the object.'),
+      object_name: z.string().optional().describe('Specific object to show grants for.'),
+      grantee:     z.string().optional().describe('Filter by grantee (user/role receiving the grant).'),
     },
-    (args) => handleAdminTools('list_grants', args as Record<string, string>, userId),
+    (args) => handleAdminTools('list_grants', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'list_active_sessions',
-    'List active Oracle user sessions from V$SESSION (up to 50 rows, sorted by idle time).',
+    'List active user sessions from V$SESSION: SID, username, status, machine, module, and idle time.',
     {
       connection: z.string().describe('Connection name.'),
     },
-    (args) => handleAdminTools('list_active_sessions', args as Record<string, string>, userId),
+    (args) => handleAdminTools('list_active_sessions', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
     'list_invalid_objects',
-    'List all database objects with STATUS != VALID (failed packages, views, etc.).',
+    'List all database objects with STATUS != VALID (invalid procedures, views, packages, etc.).',
     {
       connection: z.string().describe('Connection name.'),
-      schema:     z.string().optional().describe('Schema/owner filter.'),
+      schema:     z.string().optional().describe('Filter by schema/owner.'),
     },
-    (args) => handleAdminTools('list_invalid_objects', args as Record<string, string>, userId),
+    (args) => handleAdminTools('list_invalid_objects', args as Record<string, string | undefined>, userId),
   );
 
   return server;
