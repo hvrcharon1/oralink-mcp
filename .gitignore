@@ -10,6 +10,9 @@ node_modules/
 .env.local
 .env.*.local
 
+# Persistent credential store — NEVER commit (contains encrypted secrets)
+.data/
+
 # Oracle wallet files — NEVER commit
 *.zip
 *.p12

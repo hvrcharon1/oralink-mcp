@@ -1,0 +1,38 @@
+<svg viewBox="0 0 680 160" xmlns="http://www.w3.org/2000/svg" width="680" height="160" role="img">
+  <title>OraLink MCP</title>
+  <desc>Oracle Autonomous Database MCP Connector for Claude.ai — two interlocked chain-link rings in Oracle orange beside the oralink wordmark</desc>
+  <style>
+    .wm  { fill: #18181b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 62px; font-weight: 800; letter-spacing: -2px; }
+    .sub { fill: #f97316; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 500; letter-spacing: 4px; }
+    @media (prefers-color-scheme: dark) {
+      .wm  { fill: #f5f5f4; }
+      .sub { fill: #fb923c; }
+    }
+  </style>
+  <defs>
+    <!-- clips for chain-link interlock effect -->
+    <clipPath id="rb">
+      <rect x="0" y="0" width="153" height="160"/>
+    </clipPath>
+    <clipPath id="rf">
+      <rect x="153" y="0" width="527" height="160"/>
+    </clipPath>
+  </defs>
+
+  <!-- right ring — back half (hidden behind left ring on left side) -->
+  <g clip-path="url(#rb)">
+    <circle cx="196" cy="80" r="44" fill="none" stroke="#c2410c" stroke-width="18"/>
+  </g>
+
+  <!-- left ring — full (bright orange, sits in middle layer) -->
+  <circle cx="110" cy="80" r="44" fill="none" stroke="#f97316" stroke-width="18"/>
+
+  <!-- right ring — front half (overlaps left ring on right side) -->
+  <g clip-path="url(#rf)">
+    <circle cx="196" cy="80" r="44" fill="none" stroke="#c2410c" stroke-width="18"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="272" y="97" class="wm">oralink</text>
+  <text x="275" y="127" class="sub">mcp connector</text>
+</svg>

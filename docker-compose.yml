@@ -6,6 +6,11 @@ services:
       - "${PORT:-3000}:3000"
     env_file:
       - .env
+    volumes:
+      # Persist encrypted credential store across container restarts.
+      # Without this volume, API key users lose their add_connection registrations
+      # every time the container restarts.
+      - oralink_data:/app/.data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
@@ -13,3 +18,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+volumes:
+  oralink_data:
+    # Named volume — data survives container restarts and image upgrades.
+    # To back up: docker run --rm -v oralink_data:/data -v $(pwd):/backup alpine
+    #               tar czf /backup/oralink-data.tar.gz /data

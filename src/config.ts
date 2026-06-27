@@ -53,6 +53,14 @@ export const config = {
   logging: {
     level: optional('LOG_LEVEL', 'info'),
   },
+  data: {
+    /**
+     * Directory for the persistent encrypted credential store.
+     * Created automatically at startup if it does not exist.
+     * In Docker, mount a named volume at this path to survive container restarts.
+     */
+    dir: optional('ORALINK_DATA_DIR', '.data'),
+  },
   /**
    * Static API keys for the no-OAuth path (OCI ADB public endpoints).
    * Populated from ORALINK_API_KEYS env var at startup.
