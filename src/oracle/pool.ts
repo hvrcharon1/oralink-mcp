@@ -69,7 +69,7 @@ export async function closePool(key: PoolKey): Promise<void> {
   const k = toKey(key);
   const pool = pools.get(k);
   if (!pool) return;
-  await pool.close(0).catch(err => logger.warn('Pool close error', { err }));
+  await pool.close(0).catch((err: unknown) => logger.warn('Pool close error', { err }));
   pools.delete(k);
   logger.info('Oracle pool closed', { key: k });
 }

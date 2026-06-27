@@ -54,6 +54,7 @@ export interface McpTextContent {
 }
 
 export interface McpToolResult {
+  [x: string]: unknown;
   content: McpTextContent[];
   isError?: boolean;
 }

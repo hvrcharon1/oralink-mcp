@@ -70,7 +70,7 @@ export async function runQuery(opts: QueryOptions): Promise<QueryResult> {
 
     return {
       rows:         (result.rows ?? []) as QueryRow[],
-      columns:      result.metaData?.map(m => m.name) ?? [],
+      columns:      result.metaData?.map((m: { name: string }) => m.name) ?? [],
       rowsAffected: result.rowsAffected,
     };
   } finally {
