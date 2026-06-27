@@ -13,16 +13,17 @@
  *   2. ApiKey <key>   — static pre-shared key mapped to a userId in
  *                       ORALINK_API_KEYS env var (OCI ADB public-endpoint path)
  *
- * Tool inventory (28 total):
+ * Tool inventory (33 total):
  *   Connection mgmt : add_connection, remove_connection, test_connection
  *   Schema          : list_connections, list_schemas, list_tables, describe_table
  *   Query           : execute_query, explain_plan
  *   Metadata        : get_ddl, list_procedures
- *   Objects         : list_indexes, list_constraints, list_sequences, list_triggers,
- *                     list_synonyms, get_view_definition, search_objects
- *   Data            : count_rows, get_sample_data, execute_dml, execute_plsql
- *   Admin           : get_db_info, get_table_stats, get_tablespace_usage,
- *                     list_grants, list_active_sessions, list_invalid_objects
+ *   Objects         : list_indexes, list_constraints, get_foreign_keys, list_sequences,
+ *                     list_triggers, list_synonyms, get_view_definition, search_objects
+ *   Data            : count_rows, get_sample_data, execute_dml, execute_ddl, execute_plsql
+ *   Admin           : get_db_info, get_session_info, get_table_stats, get_top_tables_by_size,
+ *                     get_tablespace_usage, get_db_parameters, list_grants,
+ *                     list_active_sessions, list_invalid_objects
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -42,7 +43,7 @@ import { logger } from '../logger.js';
 import type { OracleConnectionConfig } from '../types.js';
 import oracledb from 'oracledb';
 
-// ── Resolve userId from any supported auth scheme ─────────────────────────
+// ── Resolve userId from any supported auth scheme ────────────────────────
 
 function resolveUserId(authHeader?: string): string | null {
   // Try OAuth Bearer first
@@ -66,15 +67,15 @@ function resolveUserId(authHeader?: string): string | null {
   return null;
 }
 
-// ── Server factory (one per request) ─────────────────────────────────────────
+// ── Server factory (one per request) ──────────────────────────────────
 
 function buildServer(userId: string): McpServer {
   const server = new McpServer({
     name:    'oralink-mcp',
-    version: '0.3.0',
+    version: '0.4.0',
   });
 
-  // ── Connection management tools ────────────────────────────────────────
+  // ── Connection management tools ────────────────────────────────
   //
   // These tools are the primary entry point for the no-OAuth / API-key path.
   // A user authenticates with a static API key (Authorization: ApiKey <key>)
@@ -275,7 +276,7 @@ function buildServer(userId: string): McpServer {
     },
   );
 
-  // ── Schema tools ───────────────────────────────────────────────────────
+  // ── Schema tools ─────────────────────────────────────────────────
 
   server.tool(
     'list_schemas',
@@ -307,7 +308,7 @@ function buildServer(userId: string): McpServer {
     (args) => handleSchemaTools('describe_table', args as Record<string, string>, userId),
   );
 
-  // ── Query tools ───────────────────────────────────────────────────────
+  // ── Query tools ─────────────────────────────────────────────────
 
   server.tool(
     'execute_query',
@@ -331,7 +332,7 @@ function buildServer(userId: string): McpServer {
     (args) => handleQueryTools('explain_plan', args as Record<string, unknown>, userId),
   );
 
-  // ── Metadata tools ─────────────────────────────────────────────────────
+  // ── Metadata tools ──────────────────────────────────────────────
 
   server.tool(
     'get_ddl',
@@ -363,7 +364,7 @@ function buildServer(userId: string): McpServer {
     () => handleMetadataTools('list_connections', {}, userId, listConnections),
   );
 
-  // ── Object tools ──────────────────────────────────────────────────────
+  // ── Object tools ─────────────────────────────────────────────────
 
   server.tool(
     'list_indexes',
@@ -385,6 +386,17 @@ function buildServer(userId: string): McpServer {
       schema:     z.string().optional().describe('Schema/owner of the table.'),
     },
     (args) => handleObjectTools('list_constraints', args as Record<string, string | undefined>, userId),
+  );
+
+  server.tool(
+    'get_foreign_keys',
+    'Get column-level foreign key relationships for a table — child columns mapped to the parent table and columns they reference, including composite keys and the ON DELETE rule.',
+    {
+      connection: z.string().describe('Connection name.'),
+      schema:     z.string().optional().describe('Schema/owner to filter by. Omit to search all accessible schemas.'),
+      table:      z.string().optional().describe('Table name to filter by. Omit to list foreign keys across the whole schema.'),
+    },
+    (args) => handleObjectTools('get_foreign_keys', args as Record<string, string | undefined>, userId),
   );
 
   server.tool(
@@ -441,7 +453,7 @@ function buildServer(userId: string): McpServer {
     (args) => handleObjectTools('search_objects', args as Record<string, string | undefined>, userId),
   );
 
-  // ── Data tools ────────────────────────────────────────────────────────
+  // ── Data tools ─────────────────────────────────────────────────
 
   server.tool(
     'count_rows',
@@ -471,12 +483,22 @@ function buildServer(userId: string): McpServer {
 
   server.tool(
     'execute_dml',
-    'Execute an INSERT, UPDATE, DELETE, or MERGE statement. Requires the connection to have allowDml enabled.',
+    'Execute an INSERT, UPDATE, DELETE, or MERGE statement. Requires the connection to have allowDml enabled. UPDATE and DELETE are rejected unless they include a WHERE clause, to prevent accidentally touching every row.',
     {
       connection: z.string().describe('Connection name (must have DML enabled).'),
-      sql:        z.string().describe('DML statement to execute.'),
+      sql:        z.string().describe('DML statement to execute. UPDATE/DELETE must include a WHERE clause.'),
     },
     (args) => handleDataTools('execute_dml', args as Record<string, unknown>, userId),
+  );
+
+  server.tool(
+    'execute_ddl',
+    'Execute a CREATE, ALTER, DROP, TRUNCATE, RENAME, or COMMENT statement. Requires the connection to have allowDml enabled. Use get_ddl or describe_table first to confirm the object before altering or dropping it.',
+    {
+      connection: z.string().describe('Connection name (must have DML enabled).'),
+      sql:        z.string().describe('DDL statement to execute (CREATE / ALTER / DROP / TRUNCATE / RENAME / COMMENT).'),
+    },
+    (args) => handleDataTools('execute_ddl', args as Record<string, unknown>, userId),
   );
 
   server.tool(
@@ -489,7 +511,7 @@ function buildServer(userId: string): McpServer {
     (args) => handleDataTools('execute_plsql', args as Record<string, unknown>, userId),
   );
 
-  // ── Admin tools ───────────────────────────────────────────────────────
+  // ── Admin tools ─────────────────────────────────────────────────
 
   server.tool(
     'get_db_info',
@@ -497,7 +519,16 @@ function buildServer(userId: string): McpServer {
     {
       connection: z.string().describe('Connection name.'),
     },
-    (args) => handleAdminTools('get_db_info', args as Record<string, string | undefined>, userId),
+    (args) => handleAdminTools('get_db_info', args as Record<string, unknown>, userId),
+  );
+
+  server.tool(
+    'get_session_info',
+    'Get current session context: connected username, current schema, database name, instance name, server host, SID, and session ID.',
+    {
+      connection: z.string().describe('Connection name.'),
+    },
+    (args) => handleAdminTools('get_session_info', args as Record<string, unknown>, userId),
   );
 
   server.tool(
@@ -508,7 +539,18 @@ function buildServer(userId: string): McpServer {
       table:      z.string().describe('Table name.'),
       schema:     z.string().optional().describe('Schema/owner.'),
     },
-    (args) => handleAdminTools('get_table_stats', args as Record<string, string | undefined>, userId),
+    (args) => handleAdminTools('get_table_stats', args as Record<string, unknown>, userId),
+  );
+
+  server.tool(
+    'get_top_tables_by_size',
+    'List the largest tables in a schema ordered by physical storage size (MB), descending. Useful for finding storage growth and cleanup candidates.',
+    {
+      connection: z.string().describe('Connection name.'),
+      schema:     z.string().optional().describe('Schema/owner to filter by. Omit to search all accessible schemas.'),
+      limit:      z.number().int().min(1).max(100).default(20).optional().describe('Max tables to return (default 20).'),
+    },
+    (args) => handleAdminTools('get_top_tables_by_size', args as Record<string, unknown>, userId),
   );
 
   server.tool(
@@ -517,7 +559,18 @@ function buildServer(userId: string): McpServer {
     {
       connection: z.string().describe('Connection name.'),
     },
-    (args) => handleAdminTools('get_tablespace_usage', args as Record<string, string | undefined>, userId),
+    (args) => handleAdminTools('get_tablespace_usage', args as Record<string, unknown>, userId),
+  );
+
+  server.tool(
+    'get_db_parameters',
+    'Look up Oracle initialization parameters (V$PARAMETER) by name pattern — e.g. memory, optimizer, or NLS settings.',
+    {
+      connection: z.string().describe('Connection name.'),
+      pattern:    z.string().optional().describe('Parameter name pattern using SQL LIKE syntax (e.g. "%MEMORY%"). Defaults to "%" (all).'),
+      limit:      z.number().int().min(1).max(200).default(50).optional().describe('Max parameters to return (default 50).'),
+    },
+    (args) => handleAdminTools('get_db_parameters', args as Record<string, unknown>, userId),
   );
 
   server.tool(
@@ -529,7 +582,7 @@ function buildServer(userId: string): McpServer {
       object_name: z.string().optional().describe('Specific object to show grants for.'),
       grantee:     z.string().optional().describe('Filter by grantee (user/role receiving the grant).'),
     },
-    (args) => handleAdminTools('list_grants', args as Record<string, string | undefined>, userId),
+    (args) => handleAdminTools('list_grants', args as Record<string, unknown>, userId),
   );
 
   server.tool(
@@ -538,7 +591,7 @@ function buildServer(userId: string): McpServer {
     {
       connection: z.string().describe('Connection name.'),
     },
-    (args) => handleAdminTools('list_active_sessions', args as Record<string, string | undefined>, userId),
+    (args) => handleAdminTools('list_active_sessions', args as Record<string, unknown>, userId),
   );
 
   server.tool(
@@ -548,13 +601,13 @@ function buildServer(userId: string): McpServer {
       connection: z.string().describe('Connection name.'),
       schema:     z.string().optional().describe('Filter by schema/owner.'),
     },
-    (args) => handleAdminTools('list_invalid_objects', args as Record<string, string | undefined>, userId),
+    (args) => handleAdminTools('list_invalid_objects', args as Record<string, unknown>, userId),
   );
 
   return server;
 }
 
-// ── Express handler: POST /mcp ──────────────────────────────────────────
+// ── Express handler: POST /mcp ────────────────────────────────────
 
 export async function mcpHandler(req: Request, res: Response): Promise<void> {
   const authHeader = req.headers.authorization;
