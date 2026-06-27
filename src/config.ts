@@ -4,6 +4,30 @@ function optional(key: string, fallback: string): string {
   return process.env[key] ?? fallback;
 }
 
+/**
+ * Parse ORALINK_API_KEYS environment variable.
+ *
+ * Format: comma-separated list of  key:userId  pairs.
+ * Example:
+ *   ORALINK_API_KEYS=sk-alice-abc123:alice-uuid,sk-bob-xyz999:bob-uuid
+ *
+ * This enables the no-OAuth path for OCI ADB public-endpoint connections.
+ * Each API key maps to a fixed userId so credential storage works identically
+ * to the OAuth path — the rest of the system is unaware of how auth happened.
+ */
+function parseApiKeys(raw: string): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!raw.trim()) return map;
+  for (const pair of raw.split(',')) {
+    const idx = pair.indexOf(':');
+    if (idx < 1) continue;
+    const key    = pair.slice(0, idx).trim();
+    const userId = pair.slice(idx + 1).trim();
+    if (key && userId) map.set(key, userId);
+  }
+  return map;
+}
+
 export const config = {
   server: {
     port: parseInt(optional('PORT', '3000'), 10),
@@ -29,4 +53,10 @@ export const config = {
   logging: {
     level: optional('LOG_LEVEL', 'info'),
   },
+  /**
+   * Static API keys for the no-OAuth path (OCI ADB public endpoints).
+   * Populated from ORALINK_API_KEYS env var at startup.
+   * key → userId
+   */
+  apiKeys: parseApiKeys(optional('ORALINK_API_KEYS', '')),
 } as const;

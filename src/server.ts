@@ -62,7 +62,7 @@ app.delete('/mcp', mcpHandler); // Session teardown
 // ── Health ────────────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'oralink-mcp', version: '0.1.0' });
+  res.json({ status: 'ok', service: 'oralink-mcp', version: '0.3.0' });
 });
 
 // ── Graceful shutdown ────────────────────────────────────────────────────────────
@@ -82,6 +82,9 @@ app.listen(config.server.port, config.server.host, () => {
   logger.info(`  MCP   → ${config.server.baseUrl}/mcp`);
   logger.info(`  OAuth → ${config.server.baseUrl}/oauth/authorize`);
   logger.info(`  OIDC  → ${config.server.baseUrl}/.well-known/oauth-authorization-server`);
+  if (config.apiKeys.size > 0) {
+    logger.info(`  API keys configured: ${config.apiKeys.size} (no-OAuth / public-endpoint path enabled)`);
+  }
 });
 
 export { app };

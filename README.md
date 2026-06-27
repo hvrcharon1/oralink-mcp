@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-1.x-green.svg)](https://modelcontextprotocol.io)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-brightgreen.svg)](https://nodejs.org)
-[![Tools](https://img.shields.io/badge/Tools-25-orange.svg)](#mcp-tools)
+[![Tools](https://img.shields.io/badge/Tools-28-orange.svg)](#mcp-tools)
 
 ## What is this?
 
@@ -15,42 +15,138 @@ OraLink MCP is a hosted, OAuth 2.0-compatible [Model Context Protocol](https://m
 Unlike Oracle's existing SQLcl MCP server (STDIO/local-only), OraLink MCP:
 
 - Runs as an **HTTPS endpoint** reachable from the cloud
-- Implements **OAuth 2.0 authorization code flow** — eligible for the Claude.ai connector marketplace
+- Supports **two auth paths**: OAuth 2.0 (for Claude.ai marketplace) and static API keys (for OCI ADB public-endpoint / no-OAuth setups)
 - Works from **any device including mobile**
 - Connects to **any Oracle ADB instance** across regions
 - Uses **node-oracledb Thin Mode** — no Oracle Client libraries needed
-- Provides **25 MCP tools** across schema, query, objects, data, and admin categories
+- Provides **28 MCP tools** across connection mgmt, schema, query, objects, data, and admin categories
 
 ## Architecture
 
 ```
 Claude.ai / Cursor / Any MCP Client
-        │  (MCP over HTTPS + Bearer token)
+        │  (MCP over HTTPS)
+        │  Auth: Bearer <jwt>  — OAuth 2.0 flow
+        │        ApiKey <key>  — static key (OCI public-endpoint path)
         ▼
-┌──────────────────────────┐
-│       OraLink MCP        │
-│  ┌──────────────────┐   │
-│  │   OAuth 2.0      │   │
-│  │   /oauth/*       │   │
-│  └────────┬─────────┘   │
-│  ┌─────────▼─────────┐  │
-│  │   MCP Tools (25)  │  │
-│  │ schema / query /  │  │
-│  │ objects / data /  │  │
-│  │ metadata / admin  │  │
-│  └────────┬──────────┘  │
-│  ┌─────────▼─────────┐  │
-│  │  node-oracledb    │  │
-│  │  (Thin Mode v6)   │  │
-│  └────────┬──────────┘  │
-└───────────┼──────────────┘
-            │  (TLS / mTLS)
-            ▼
-  Oracle Autonomous Database
-        (OCI Cloud)
+┌──────────────────────────────────┐
+│          OraLink MCP             │
+│  ┌──────────────────────────┐   │
+│  │   Auth layer             │   │
+│  │  OAuth 2.0 /oauth/*      │   │
+│  │  API Key  ORALINK_API_KEYS│  │
+│  └───────────┬──────────────┘   │
+│  ┌───────────▼──────────────┐   │
+│  │   MCP Tools (28)         │   │
+│  │ add/remove/test_conn /   │   │
+│  │ schema / query / objects │   │
+│  │ data / metadata / admin  │   │
+│  └───────────┬──────────────┘   │
+│  ┌───────────▼──────────────┐   │
+│  │  node-oracledb (Thin v6) │   │
+│  └───────────┬──────────────┘   │
+└──────────────┼───────────────────┘
+               │  (TLS / mTLS)
+               ▼
+     Oracle Autonomous Database
+           (OCI Cloud)
 ```
 
+## Authentication paths
+
+### Path 1 — OAuth 2.0 (Claude.ai marketplace)
+
+The standard OAuth 2.0 authorization code flow. Claude.ai handles the redirect;
+the user fills in their ADB connection details on the OraLink consent form.
+
+```
+1. User clicks "Connect Oracle ADB" in Claude.ai
+2. Redirected → GET /oauth/authorize
+3. User enters ADB details (connect string, username, password, optional wallet)
+4. POST /oauth/authorize → stores encrypted credentials, issues auth code
+5. POST /oauth/token → returns access_token (JWT) + refresh_token
+6. Claude.ai stores token, sends as Bearer on every MCP request
+```
+
+### Path 2 — Static API key (OCI ADB public endpoint, no OAuth)
+
+OCI Autonomous Database does **not** provide its own OAuth server. When your ADB
+instance is on a **public endpoint** (access controlled via OCI network ACL or
+resource tag), you can skip the OAuth consent flow and connect with a static
+pre-shared API key instead.
+
+**OCI setup (one-time):**
+
+1. In OCI Console → your ADB → **Network → Access Control List**: add the IP
+   address of your OraLink server (or use a CIDR / VCN OCID tag).
+2. Under **DB Connection**: copy the **TLS** connect string (not the mTLS/wallet
+   download — public-endpoint ADB-S has supported one-way TLS without a wallet
+   since 2023). It looks like:
+   ```
+   (description=(retry_count=20)(retry_delay=3)
+     (address=(protocol=tcps)(port=1522)
+       (host=adb.us-ashburn-1.oraclecloud.com))
+     (connect_data=(service_name=g1abc2def_mydb_high.adb.oraclecloud.com))
+     (security=(ssl_server_dn_match=yes)))
+   ```
+
+**OraLink server setup:**
+
+```bash
+# Generate a key and a userId
+export MY_KEY=$(openssl rand -hex 32)
+export MY_USER=$(node -e "console.log(require('crypto').randomUUID())")
+
+# Add to .env
+echo "ORALINK_API_KEYS=${MY_KEY}:${MY_USER}" >> .env
+```
+
+**MCP client config** (`~/.config/claude/claude_desktop_config.json` or `mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "oralink": {
+      "type": "streamableHttp",
+      "url": "https://your-oralink-server.example.com/mcp",
+      "headers": {
+        "Authorization": "ApiKey YOUR_KEY_HERE"
+      }
+    }
+  }
+}
+```
+
+**Register your ADB connection** (call from Claude / any MCP client):
+
+```
+Call tool: add_connection
+  connection_name : "prod-adb"
+  connect_string  : "(description=...paste TLS connect string here...)" 
+  db_user         : "ADMIN"
+  db_password     : "<your ADB password>"
+  allow_dml       : false
+```
+
+Then verify it works:
+
+```
+Call tool: test_connection
+  connection : "prod-adb"
+```
+
+If the test passes you'll see the Oracle version banner. You're ready to use all
+28 tools against your ADB instance with no OAuth flow required.
+
 ## MCP Tools
+
+### Connection Management (3 tools)
+
+| Tool | Description |
+|------|-------------|
+| `add_connection` | Register a new ADB connection (OAuth or API-key path) |
+| `remove_connection` | Remove a registered connection |
+| `test_connection` | Verify a connection by running SELECT on V$VERSION |
 
 ### Schema & Metadata (8 tools)
 
@@ -103,7 +199,8 @@ Claude.ai / Cursor / Any MCP Client
 
 - Node.js 18+
 - An Oracle Autonomous Database instance (19c or 26ai)
-- OCI wallet `.zip` (for mTLS) or TLS connection string
+- OCI network ACL allowing your server's IP (public-endpoint path), or
+- OCI wallet `.zip` (for mTLS / private-endpoint path)
 
 ### Install & run
 
@@ -116,37 +213,10 @@ cp .env.example .env
 npm run dev
 ```
 
-### Connect your MCP client
-
-```json
-{
-  "mcpServers": {
-    "oralink": {
-      "type": "streamableHttp",
-      "url": "http://localhost:3000/mcp",
-      "headers": {
-        "Authorization": "Bearer <your_access_token>"
-      }
-    }
-  }
-}
-```
-
-## OAuth 2.0 Flow (for Claude.ai marketplace)
-
-```
-1. User clicks "Connect Oracle ADB" in Claude.ai
-2. Redirected → GET /oauth/authorize
-3. User enters ADB connection details (connect string, username, password, wallet)
-4. POST /oauth/authorize → stores encrypted credentials, issues auth code
-5. POST /oauth/token → returns access_token (JWT) + refresh_token
-6. Claude.ai stores token, sends as Bearer on every MCP request
-7. OraLink validates JWT → routes to per-user Oracle connection pool
-```
-
 ### Discovery document
 
-`GET /.well-known/oauth-authorization-server` returns the RFC 8414 metadata document required by Claude.ai.
+`GET /.well-known/oauth-authorization-server` returns the RFC 8414 metadata
+document required by Claude.ai marketplace registration.
 
 ## Deployment
 
@@ -165,6 +235,7 @@ docker compose up -d
 - All queries logged with user context
 - Wallet content held in memory only — never written to disk
 - SQL injection prevention via Oracle parameterized query API
+- API keys never stored; only the key→userId mapping lives in env at startup
 
 ## License
 

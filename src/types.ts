@@ -1,5 +1,13 @@
 // ── Oracle connection ─────────────────────────────────────────────────────
 
+/**
+ * How this connection entry was created:
+ *  - 'oauth'  — registered via the OAuth 2.0 consent form
+ *  - 'apikey' — registered via the add_connection MCP tool using the
+ *               no-OAuth / static API key path (OCI ADB public endpoint)
+ */
+export type ConnectionType = 'oauth' | 'apikey';
+
 export interface OracleConnectionConfig {
   /** Friendly label for this connection */
   name: string;
@@ -15,6 +23,11 @@ export interface OracleConnectionConfig {
   walletContent?: string;
   /** Wallet password */
   walletPassword?: string;
+  /**
+   * How this connection was registered.
+   * Defaults to 'oauth' for backwards compatibility with existing entries.
+   */
+  connectionType?: ConnectionType;
 }
 
 export interface StoredUser {
