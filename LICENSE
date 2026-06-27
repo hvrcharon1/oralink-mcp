@@ -5,28 +5,23 @@ Copyright (c) 2026 Datacules LLC. All rights reserved.
 This software and associated documentation files (the "Software") are the
 proprietary and confidential intellectual property of Datacules LLC.
 
-UNAUTHORIZED USE PROHIBITED. No part of this Software may be reproduced,
-distributed, modified, reverse-engineered, decompiled, disassembled,
-sublicensed, sold, transferred, or otherwise exploited — in whole or in part —
-without the prior written consent of Datacules LLC.
+No part of this Software may be reproduced, distributed, modified,
+reverse-engineered, decompiled, disassembled, sublicensed, sold, transferred,
+or otherwise exploited — in whole or in part — without the prior written
+consent of Datacules LLC.
 
-PERMITTED USE. Subject to the terms of a separately executed written agreement
-between you (or your organization) and Datacules LLC, you may use this Software
-solely for its intended purpose as described in the accompanying documentation.
+Subject to the terms of a separately executed written agreement between you
+(or your organization) and Datacules LLC, you may use this Software solely
+for its intended purpose as described in the accompanying documentation.
 
-NO OPEN SOURCE RIGHTS. This Software is NOT open source and is NOT licensed
-under any open source license (including but not limited to MIT, Apache 2.0,
-GPL, LGPL, or BSD). No open source rights of any kind are granted.
-
-NO WARRANTY. THIS SOFTWARE IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED. DATACULES LLC EXPRESSLY DISCLAIMS ALL WARRANTIES, INCLUDING
+THIS SOFTWARE IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. DATACULES LLC EXPRESSLY DISCLAIMS ALL WARRANTIES, INCLUDING
 WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
 NON-INFRINGEMENT.
 
-LIMITATION OF LIABILITY. IN NO EVENT SHALL DATACULES LLC BE LIABLE FOR ANY
-INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING OUT
-OF OR RELATED TO THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
-DAMAGES.
+IN NO EVENT SHALL DATACULES LLC BE LIABLE FOR ANY INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR RELATED TO
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
 For licensing inquiries, partnership agreements, or authorized usage:
   legal@datacules.com
