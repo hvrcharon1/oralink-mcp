@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.svg" alt="OraLink MCP" width="460"/>
+</p>
+
 # OraLink MCP
 
 > Oracle Autonomous Database MCP Server — an OAuth 2.0-compatible, hosted connector for Claude.ai and any MCP client.
