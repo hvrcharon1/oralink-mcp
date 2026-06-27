@@ -1,22 +1,29 @@
 /**
  * MCP tools: DBA / performance / administration
  *
- *   get_db_info           — database version, name, mode, platform
- *   get_table_stats       — optimizer statistics (rows, blocks, size)
- *   get_tablespace_usage  — tablespace used/total/percent
- *   list_grants           — object-level grants to/from users
- *   list_active_sessions  — active user sessions from V$SESSION
- *   list_invalid_objects  — objects with STATUS != VALID
+ *   get_db_info            — database version, name, mode, platform
+ *   get_session_info       — current session context (user, schema, instance, SID)
+ *   get_table_stats         — optimizer statistics (rows, blocks, size)
+ *   get_top_tables_by_size — largest tables in a schema by physical storage
+ *   get_tablespace_usage   — tablespace used/total/percent
+ *   get_db_parameters      — V$PARAMETER lookup by name pattern
+ *   list_grants            — object-level grants to/from users
+ *   list_active_sessions   — active user sessions from V$SESSION
+ *   list_invalid_objects   — objects with STATUS != VALID
  */
 import { runQuery } from '../oracle/client.js';
 import type { McpToolResult, QueryRow } from '../types.js';
 
+function strArg(v: unknown): string | undefined {
+  return v === undefined || v === null ? undefined : String(v);
+}
+
 export async function handleAdminTools(
   toolName: string,
-  args:     Record<string, string | undefined>,
+  args:     Record<string, unknown>,
   userId:   string,
 ): Promise<McpToolResult> {
-  const connectionName = args.connection!;
+  const connectionName = String(args.connection);
 
   // ── get_db_info ────────────────────────────────────────────────────────────
 
@@ -49,11 +56,28 @@ export async function handleAdminTools(
     return ok(parts.length > 0 ? parts.join('\n') : 'Database info unavailable (insufficient privileges).');
   }
 
+  // ── get_session_info ───────────────────────────────────────────────────
+
+  if (toolName === 'get_session_info') {
+    const result = await runQuery({ userId, connectionName, sql:
+      `SELECT SYS_CONTEXT('USERENV','SESSION_USER')   AS USERNAME,
+              SYS_CONTEXT('USERENV','CURRENT_SCHEMA') AS CURRENT_SCHEMA,
+              SYS_CONTEXT('USERENV','DB_NAME')        AS DB_NAME,
+              SYS_CONTEXT('USERENV','INSTANCE_NAME')  AS INSTANCE_NAME,
+              SYS_CONTEXT('USERENV','SERVER_HOST')    AS SERVER_HOST,
+              SYS_CONTEXT('USERENV','SID')            AS SID,
+              SYS_CONTEXT('USERENV','SESSIONID')      AS SESSION_ID,
+              SYS_CONTEXT('USERENV','NLS_TERRITORY')  AS NLS_TERRITORY
+       FROM   DUAL`,
+    });
+    return ok(fmtTable(result.rows, result.columns));
+  }
+
   // ── get_table_stats ────────────────────────────────────────────────────
 
   if (toolName === 'get_table_stats') {
-    const owner = args.schema?.toUpperCase();
-    const table = args.table!.toUpperCase();
+    const owner = strArg(args.schema)?.toUpperCase();
+    const table = strArg(args.table)!.toUpperCase();
     const ownerClause = owner ? `AND OWNER = '${owner}'` : '';
 
     const result = await runQuery({ userId, connectionName, sql:
@@ -73,6 +97,37 @@ export async function handleAdminTools(
         `Run: EXEC DBMS_STATS.GATHER_TABLE_STATS('${owner ?? 'OWNER'}','${table}');`,
       );
     return ok(fmtTable(result.rows, result.columns));
+  }
+
+  // ── get_top_tables_by_size ───────────────────────────────────────────────
+
+  if (toolName === 'get_top_tables_by_size') {
+    const owner = strArg(args.schema)?.toUpperCase();
+    const limit = Math.min(Number(args.limit ?? 20), 100);
+    const ownerClause = owner ? `AND OWNER = '${owner}'` : '';
+
+    const result = await runQuery({ userId, connectionName, sql:
+      `SELECT OWNER, SEGMENT_NAME AS TABLE_NAME,
+              ROUND(BYTES / 1048576, 2) AS SIZE_MB,
+              EXTENTS, BLOCKS
+       FROM   DBA_SEGMENTS
+       WHERE  SEGMENT_TYPE IN ('TABLE','TABLE PARTITION')
+       ${ownerClause}
+       ORDER BY BYTES DESC
+       FETCH FIRST ${limit} ROWS ONLY`,
+    }).catch(() => runQuery({ userId, connectionName, sql:
+      // Fallback for users without DBA_SEGMENTS access — own schema only
+      `SELECT SEGMENT_NAME AS TABLE_NAME,
+              ROUND(BYTES / 1048576, 2) AS SIZE_MB,
+              EXTENTS, BLOCKS
+       FROM   USER_SEGMENTS
+       WHERE  SEGMENT_TYPE IN ('TABLE','TABLE PARTITION')
+       ORDER BY BYTES DESC
+       FETCH FIRST ${limit} ROWS ONLY`,
+    }));
+    return ok(result.rows.length === 0
+      ? `No table segments found${owner ? ` for schema ${owner}` : ''}.`
+      : fmtTable(result.rows, result.columns));
   }
 
   // ── get_tablespace_usage ───────────────────────────────────────────────
@@ -96,12 +151,30 @@ export async function handleAdminTools(
     return ok(fmtTable(result.rows, result.columns));
   }
 
+  // ── get_db_parameters ──────────────────────────────────────────────────
+
+  if (toolName === 'get_db_parameters') {
+    const pattern = (strArg(args.pattern) ?? '%').replace(/'/g, "''");
+    const limit   = Math.min(Number(args.limit ?? 50), 200);
+
+    const result = await runQuery({ userId, connectionName, sql:
+      `SELECT NAME, VALUE, DISPLAY_VALUE, ISDEFAULT, ISSES_MODIFIABLE, DESCRIPTION
+       FROM   V$PARAMETER
+       WHERE  UPPER(NAME) LIKE UPPER('${pattern}')
+       ORDER BY NAME
+       FETCH FIRST ${limit} ROWS ONLY`,
+    });
+    return ok(result.rows.length === 0
+      ? `No parameters found matching: ${pattern}`
+      : fmtTable(result.rows, result.columns));
+  }
+
   // ── list_grants ───────────────────────────────────────────────────────────
 
   if (toolName === 'list_grants') {
-    const owner   = args.schema?.toUpperCase();
-    const object  = args.object_name?.toUpperCase();
-    const grantee = args.grantee?.toUpperCase();
+    const owner   = strArg(args.schema)?.toUpperCase();
+    const object  = strArg(args.object_name)?.toUpperCase();
+    const grantee = strArg(args.grantee)?.toUpperCase();
     const ownerClause   = owner   ? `AND OWNER      = '${owner}'`   : '';
     const objectClause  = object  ? `AND TABLE_NAME = '${object}'`  : '';
     const granteeClause = grantee ? `AND GRANTEE    = '${grantee}'` : '';
@@ -141,7 +214,7 @@ export async function handleAdminTools(
   // ── list_invalid_objects ──────────────────────────────────────────────
 
   if (toolName === 'list_invalid_objects') {
-    const owner = args.schema?.toUpperCase();
+    const owner = strArg(args.schema)?.toUpperCase();
     const ownerClause = owner ? `AND OWNER = '${owner}'` : '';
 
     const result = await runQuery({ userId, connectionName, sql:

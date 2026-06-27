@@ -3,6 +3,7 @@
  *
  *   list_indexes        — indexes on a table / across a schema
  *   list_constraints    — PK, FK, UK, CHECK on a table
+ *   get_foreign_keys    — column-level FK relationships (child → parent)
  *   list_sequences      — sequences in a schema
  *   list_triggers       — triggers on a table or in a schema
  *   list_synonyms       — synonyms accessible to the user
@@ -71,6 +72,46 @@ export async function handleObjectTools(
     });
     return ok(result.rows.length === 0
       ? `No constraints found on ${owner ? owner + '.' : ''}${table}.`
+      : fmtTable(result.rows, result.columns));
+  }
+
+  // ── get_foreign_keys ─────────────────────────────────────────────────────
+  //
+  // Dedicated, column-level FK lookup. Unlike list_constraints (which only
+  // names the referenced table), this resolves and LISTAGGs the actual child
+  // column(s) and the parent column(s) they point to — including composite
+  // foreign keys — so an agent can see the join condition directly without
+  // a follow-up describe_table round trip.
+
+  if (toolName === 'get_foreign_keys') {
+    const owner = args.schema?.toUpperCase();
+    const table = args.table?.toUpperCase();
+    const ownerClause = owner ? `AND a.OWNER = '${owner}'` : '';
+    const tableClause = table ? `AND a.TABLE_NAME = '${table}'` : '';
+
+    const result = await runQuery({ userId, connectionName, sql:
+      `SELECT a.OWNER AS FK_OWNER, a.TABLE_NAME AS FK_TABLE, a.CONSTRAINT_NAME AS FK_NAME,
+              LISTAGG(b.COLUMN_NAME, ', ') WITHIN GROUP (ORDER BY b.POSITION) AS FK_COLUMNS,
+              c.OWNER AS REF_OWNER, c.TABLE_NAME AS REF_TABLE,
+              LISTAGG(d.COLUMN_NAME, ', ') WITHIN GROUP (ORDER BY d.POSITION) AS REF_COLUMNS,
+              a.DELETE_RULE, a.STATUS
+       FROM   ALL_CONSTRAINTS a
+       JOIN   ALL_CONS_COLUMNS b
+              ON  b.OWNER = a.OWNER AND b.CONSTRAINT_NAME = a.CONSTRAINT_NAME
+       JOIN   ALL_CONSTRAINTS c
+              ON  c.OWNER = a.R_OWNER AND c.CONSTRAINT_NAME = a.R_CONSTRAINT_NAME
+       JOIN   ALL_CONS_COLUMNS d
+              ON  d.OWNER = c.OWNER AND d.CONSTRAINT_NAME = c.CONSTRAINT_NAME
+              AND d.POSITION = b.POSITION
+       WHERE  a.CONSTRAINT_TYPE = 'R'
+       ${ownerClause}
+       ${tableClause}
+       GROUP BY a.OWNER, a.TABLE_NAME, a.CONSTRAINT_NAME,
+                c.OWNER, c.TABLE_NAME, a.DELETE_RULE, a.STATUS
+       ORDER BY a.OWNER, a.TABLE_NAME, a.CONSTRAINT_NAME`,
+    });
+    return ok(result.rows.length === 0
+      ? `No foreign keys found${table ? ` on ${owner ? owner + '.' : ''}${table}` : owner ? ` in schema ${owner}` : ''}.`
       : fmtTable(result.rows, result.columns));
   }
 
