@@ -97,34 +97,48 @@ function buildServer(userId: string): McpServer {
       'For OCI Autonomous Database public-endpoint connections (no OAuth required):',
       '  1. In OCI Console → your ADB → Network → Access Control List, add the IP of this',
       '     OraLink server (or set a network tag that includes it).',
-      '  2. Under DB Connection, download the public TLS connect string (NOT the wallet',
+      '  2. Under DB Connection, copy the public TLS connect string (NOT the wallet',
       '     download — the plain TLS string that works without a wallet).',
-      '  3. Call this tool with connect_string = that TLS string, db_user = ADMIN (or your',
-      '     user), and db_password = your ADB password. No wallet needed for public TLS.',
+      '  3. Call this tool with:',
+      '       db_user     = ADMIN  (the default user OCI creates on every ADB instance)',
+      '       db_password = the password you entered for ADMIN when you created the',
+      '                     ADB instance in the OCI Console',
+      '     No wallet needed for public TLS.',
       '',
       'For mTLS (private endpoint or legacy ADB): also provide wallet_b64 (base64 of',
       'wallet.zip) and wallet_password.',
     ].join('\n'),
     {
-      connection_name:  z.string().min(1).max(64)
-                          .describe('Friendly label for this connection (e.g. "prod-adb", "dev").'),
-      connect_string:   z.string().min(1)
-                          .describe(
-                            'Oracle TLS connect string or host:port/service. '
-                            + 'For OCI ADB public endpoint: copy from OCI Console → ADB → DB Connection '
-                            + '→ "TLS" tab (no wallet required). '
-                            + 'Example: "(description=(retry_count=20)(retry_delay=3)(address=(protocol=tcps)'
-                            + '(port=1522)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name='
-                            + 'g123abc456_mydb_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))"'
-                          ),
-      db_user:          z.string().min(1).describe('Database username (e.g. ADMIN).'),
-      db_password:      z.string().min(1).describe('Database password.'),
-      allow_dml:        z.boolean().default(false)
-                          .describe('Allow INSERT / UPDATE / DELETE / MERGE via MCP tools. Default: false (read-only).'),
-      wallet_b64:       z.string().optional()
-                          .describe('Base64-encoded wallet.zip for mTLS. Not needed for ADB public-endpoint TLS connections.'),
-      wallet_password:  z.string().optional()
-                          .describe('Wallet password (only needed when wallet_b64 is provided).'),
+      connection_name: z.string().min(1).max(64)
+                         .describe('Friendly label for this connection (e.g. "prod-adb", "dev").'),
+      connect_string:  z.string().min(1)
+                         .describe(
+                           'Oracle TLS connect string or host:port/service. '
+                           + 'For OCI ADB public endpoint: copy from OCI Console → ADB → DB Connection '
+                           + '→ "TLS" tab (no wallet required). '
+                           + 'Example: "(description=(retry_count=20)(retry_delay=3)(address=(protocol=tcps)'
+                           + '(port=1522)(host=adb.us-ashburn-1.oraclecloud.com))(connect_data=(service_name='
+                           + 'g123abc456_mydb_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))"'
+                         ),
+      db_user:         z.string().min(1)
+                         .describe(
+                           'Database username. '
+                           + 'OCI Autonomous Database automatically creates an ADMIN user on every instance — '
+                           + 'use "ADMIN" unless you have created and want to connect as a different schema user.'
+                         ),
+      db_password:     z.string().min(1)
+                         .describe(
+                           'Password for the database user. '
+                           + 'For the default ADMIN user: this is the password you entered in the OCI Console '
+                           + 'when you created the Autonomous Database instance (the "Create Autonomous Database" '
+                           + 'wizard asks for it under "Administrator credentials").'
+                         ),
+      allow_dml:       z.boolean().default(false)
+                         .describe('Allow INSERT / UPDATE / DELETE / MERGE via MCP tools. Default: false (read-only).'),
+      wallet_b64:      z.string().optional()
+                         .describe('Base64-encoded wallet.zip for mTLS. Not needed for ADB public-endpoint TLS connections.'),
+      wallet_password: z.string().optional()
+                         .describe('Wallet password (only needed when wallet_b64 is provided).'),
     },
     async (args) => {
       const conn: OracleConnectionConfig = {
@@ -250,7 +264,8 @@ function buildServer(userId: string): McpServer {
               `    (OCI Console → ADB → Network → Access Control).`,
               `  • Verify the connect string is the TLS version (not mTLS — no wallet needed for`,
               `    public endpoints since ADB-S 2023).`,
-              `  • Double-check db_user and db_password.`,
+              `  • db_user is ADMIN by default. db_password is the ADMIN password you set when`,
+              `    creating the ADB instance in the OCI Console.`,
               `  • For mTLS connections: ensure wallet_b64 and wallet_password are correct.`,
             ].join('\n'),
           }],

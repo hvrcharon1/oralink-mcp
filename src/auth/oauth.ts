@@ -223,12 +223,14 @@ function authorizeHtml(clientId: string, redirectUri: string, state: string): st
 
     <div class="group">
       <label>Database username</label>
-      <input type="text" name="db_user" placeholder="ADMIN" required>
+      <input type="text" name="db_user" value="ADMIN" required>
+      <p class="hint">OCI ADB creates an <strong style="color:#e2e8f0">ADMIN</strong> user by default. Change only if you connect as a different schema.</p>
     </div>
 
     <div class="group">
-      <label>Database password</label>
+      <label>Admin password</label>
       <input type="password" name="db_password" required>
+      <p class="hint">The password you set for the ADMIN user when creating this ADB instance in the OCI Console.</p>
     </div>
 
     <hr>
@@ -242,6 +244,7 @@ function authorizeHtml(clientId: string, redirectUri: string, state: string): st
     <div class="group">
       <label>Wallet password</label>
       <input type="password" name="wallet_password">
+      <p class="hint">Only needed when a wallet is provided above.</p>
     </div>
 
     <div class="row">

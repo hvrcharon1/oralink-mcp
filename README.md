@@ -62,7 +62,7 @@ the user fills in their ADB connection details on the OraLink consent form.
 ```
 1. User clicks "Connect Oracle ADB" in Claude.ai
 2. Redirected → GET /oauth/authorize
-3. User enters ADB details (connect string, username, password, optional wallet)
+3. User enters ADB details (connect string, ADMIN username, ADMIN password, optional wallet)
 4. POST /oauth/authorize → stores encrypted credentials, issues auth code
 5. POST /oauth/token → returns access_token (JWT) + refresh_token
 6. Claude.ai stores token, sends as Bearer on every MCP request
@@ -122,11 +122,17 @@ echo "ORALINK_API_KEYS=${MY_KEY}:${MY_USER}" >> .env
 ```
 Call tool: add_connection
   connection_name : "prod-adb"
-  connect_string  : "(description=...paste TLS connect string here...)" 
+  connect_string  : "(description=...paste TLS connect string here...)"
   db_user         : "ADMIN"
-  db_password     : "<your ADB password>"
+  db_password     : "<the ADMIN password you set when creating the ADB instance in OCI Console>"
   allow_dml       : false
 ```
+
+> **Where is the ADMIN password?**  
+> OCI creates an `ADMIN` user automatically when you provision an Autonomous Database.
+> The password for this user is whatever you typed in the **"Administrator credentials"**
+> section of the **Create Autonomous Database** wizard in the OCI Console. If you forgot
+> it, you can reset it from OCI Console → your ADB → **More Actions → Reset Admin Password**.
 
 Then verify it works:
 
