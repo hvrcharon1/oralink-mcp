@@ -6,7 +6,7 @@
 
 > Oracle Autonomous Database MCP Server — an OAuth 2.0-compatible, hosted connector for Claude.ai and any MCP client.
 
-[![License: Datacules LLC OSL](https://img.shields.io/badge/License-Datacules_OSL-blue.svg)](LICENSE)
+[![License: Datacules LLC Proprietary](https://img.shields.io/badge/License-Datacules_LLC_Proprietary-red.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-1.x-green.svg)](https://modelcontextprotocol.io)
 [![Node](https://img.shields.io/badge/Node.js-18%2B-brightgreen.svg)](https://nodejs.org)
@@ -249,4 +249,9 @@ docker compose up -d
 
 ## License
 
-[Datacules LLC Open Source License](LICENSE) © 2026 Datacules LLC
+© 2026 Datacules LLC. All rights reserved.
+
+This software is proprietary and confidential. Unauthorized use, reproduction, or
+distribution is strictly prohibited. See [LICENSE](LICENSE) for full terms.
+
+For licensing inquiries: legal@datacules.com

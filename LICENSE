@@ -1,21 +1,36 @@
-Datacules LLC Open Source License
+DATACULES LLC PROPRIETARY SOFTWARE LICENSE
 
-Copyright (c) 2026 Datacules LLC
+Copyright (c) 2026 Datacules LLC. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to
-deal in the Software without restriction, including without limitation the
-rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
-sell copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and associated documentation files (the "Software") are the
+proprietary and confidential intellectual property of Datacules LLC.
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+UNAUTHORIZED USE PROHIBITED. No part of this Software may be reproduced,
+distributed, modified, reverse-engineered, decompiled, disassembled,
+sublicensed, sold, transferred, or otherwise exploited — in whole or in part —
+without the prior written consent of Datacules LLC.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
+PERMITTED USE. Subject to the terms of a separately executed written agreement
+between you (or your organization) and Datacules LLC, you may use this Software
+solely for its intended purpose as described in the accompanying documentation.
+
+NO OPEN SOURCE RIGHTS. This Software is NOT open source and is NOT licensed
+under any open source license (including but not limited to MIT, Apache 2.0,
+GPL, LGPL, or BSD). No open source rights of any kind are granted.
+
+NO WARRANTY. THIS SOFTWARE IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED. DATACULES LLC EXPRESSLY DISCLAIMS ALL WARRANTIES, INCLUDING
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+NON-INFRINGEMENT.
+
+LIMITATION OF LIABILITY. IN NO EVENT SHALL DATACULES LLC BE LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING OUT
+OF OR RELATED TO THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGES.
+
+For licensing inquiries, partnership agreements, or authorized usage:
+  legal@datacules.com
+  https://www.datacules.com
+
+Datacules LLC
+All Rights Reserved.
