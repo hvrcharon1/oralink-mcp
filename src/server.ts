@@ -16,11 +16,15 @@ import express from 'express';
 import helmet  from 'helmet';
 import cors    from 'cors';
 import morgan  from 'morgan';
+import { createRequire } from 'module';
 import { config }       from './config.js';
 import { oauthRouter }  from './auth/oauth.js';
 import { mcpHandler }   from './mcp/server.js';
 import { closeAllPools } from './oracle/pool.js';
 import { logger }       from './logger.js';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
 
 const app = express();
 
@@ -49,23 +53,23 @@ app.get('/.well-known/oauth-authorization-server', (_req, res) => {
   });
 });
 
-// ── OAuth routes ───────────────────────────────────────────────────────────────
+// ── OAuth routes ─────────────────────────────────────────────────────────
 
 app.use('/oauth', oauthRouter);
 
-// ── MCP endpoint ───────────────────────────────────────────────────────────────
+// ── MCP endpoint ──────────────────────────────────────────────────────────
 
 app.post(  '/mcp', mcpHandler);
 app.get(   '/mcp', mcpHandler); // SSE capability probe
 app.delete('/mcp', mcpHandler); // Session teardown
 
-// ── Health ────────────────────────────────────────────────────────────────────
+// ── Health ────────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'oralink-mcp', version: '0.3.0' });
+  res.json({ status: 'ok', service: 'oralink-mcp', version });
 });
 
-// ── Graceful shutdown ────────────────────────────────────────────────────────────
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
 
 async function shutdown(signal: string) {
   logger.info(`${signal} received — closing Oracle pools...`);
@@ -75,7 +79,7 @@ async function shutdown(signal: string) {
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT',  () => void shutdown('SIGINT'));
 
-// ── Start ─────────────────────────────────────────────────────────────────────
+// ── Start ─────────────────────────────────────────────────────────────────
 
 app.listen(config.server.port, config.server.host, () => {
   logger.info(`OraLink MCP ready`);
